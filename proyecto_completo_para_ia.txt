@@ -1,0 +1,2494 @@
+
+==================================================
+C:\Jayu\hackaton\backend\crear_usuarios.py
+==================================================
+import sys
+import os
+import bcrypt
+
+sys.path.insert(0, os.path.dirname(__file__))
+
+from app.database import SessionLocal
+from app.models.user import User
+
+def hash_password(password: str) -> str:
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+USUARIOS = [
+    {"username": "admin",         "email": "admin@eamedical.com",      "full_name": "Administrador General",       "password": "admin123", "role": "admin",      "phone": None},
+    {"username": "katerin.quenta","email": "katerin@eamedical.com",    "full_name": "Katerin Sara Quenta Ticona",  "password": "admin123", "role": "admin",      "phone": "591-71234001"},
+    {"username": "supervisor",    "email": "supervisor@eamedical.com", "full_name": "Supervisor de Inventario",    "password": "super123", "role": "supervisor", "phone": None},
+    {"username": "jayu.mendoza",  "email": "jayu@eamedical.com",       "full_name": "Jayu Tomas Mendoza Amaru",   "password": "super123", "role": "supervisor", "phone": "591-71234002"},
+    {"username": "almacenero",    "email": "almacenero@eamedical.com", "full_name": "Almacenero de Prueba",        "password": "alma123",  "role": "almacenero", "phone": None},
+    {"username": "adiel.pabon",   "email": "adiel@eamedical.com",      "full_name": "Adiel Noel Pabon Nina",       "password": "alma123",  "role": "almacenero", "phone": "591-71234003"},
+    {"username": "eric.luna",     "email": "eric@eamedical.com",       "full_name": "Eric Mauricio Luna Pinto",    "password": "alma123",  "role": "almacenero", "phone": "591-71234004"},
+]
+
+def main():
+    db = SessionLocal()
+    try:
+        count = db.query(User).count()
+        if count > 0:
+            print(f"Ya existen {count} usuarios.")
+            resp = input("Borrarlos y recrearlos? (s/n): ").strip().lower()
+            if resp != "s":
+                print("Cancelado.")
+                return
+            db.query(User).delete()
+            db.commit()
+            print("Usuarios anteriores eliminados.\n")
+
+        print("Creando usuarios...\n")
+        for data in USUARIOS:
+            hashed = hash_password(data["password"])
+            user = User(
+                username=data["username"], email=data["email"],
+                full_name=data["full_name"], hashed_password=hashed,
+                role=data["role"], phone=data["phone"], is_active=True,
+            )
+            db.add(user)
+            print(f"  OK {data['role']:12} | {data['username']:20} | pass: {data['password']}")
+
+        db.commit()
+        print("\nUsuarios creados correctamente!")
+        print(f"\n  {'Usuario':<20} {'Contrasena':<12} Rol")
+        for u in USUARIOS:
+            print(f"  {u['username']:<20} {u['password']:<12} {u['role']}")
+    except Exception as e:
+        db.rollback()
+        print(f"Error: {e}")
+        raise
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    main()
+
+
+==================================================
+C:\Jayu\hackaton\backend\exportar_proyecto.py
+==================================================
+import os
+
+# Carpeta base de tu proyecto (cámbiala si es necesario)
+BASE_DIR = r"C:\Jayu\hackaton"
+# Nombre del archivo que se generará
+OUTPUT_FILE = "proyecto_completo_para_ia.txt"
+
+# Carpetas que la IA NO necesita leer (para ahorrar espacio)
+IGNORE_DIRS = {'node_modules', '.git', '__pycache__', 'venv', 'env', 'build', 'dist', '.idea', '.vscode'}
+
+# Tipos de archivos que sí queremos incluir
+ALLOWED_EXTENSIONS = {'.py', '.js', '.jsx', '.html', '.css', '.json'}
+
+with open(OUTPUT_FILE, 'w', encoding='utf-8') as outfile:
+    for root, dirs, files in os.walk(BASE_DIR):
+        # Ignorar las carpetas pesadas/basura
+        dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+
+        for file in files:
+            ext = os.path.splitext(file)[1].lower()
+            if ext in ALLOWED_EXTENSIONS:
+                filepath = os.path.join(root, file)
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as infile:
+                        content = infile.read()
+                        # Escribir la ruta del archivo y luego su contenido
+                        outfile.write(f"\n{'='*50}\n")
+                        outfile.write(f"{filepath}\n")
+                        outfile.write(f"{'='*50}\n")
+                        outfile.write(f"{content}\n\n")
+                except Exception as e:
+                    print(f"No se pudo leer {filepath}: {e}")
+
+print(f"¡Listo! Se ha creado el archivo {OUTPUT_FILE} con todo tu código.")
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\config.py
+==================================================
+from pydantic_settings import BaseSettings
+from functools import lru_cache
+
+
+class Settings(BaseSettings):
+    # ── App ────────────────────────────────────────────────
+    APP_NAME: str = "MedStock Pro API"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = True
+
+    # ── Base de Datos MySQL ─────────────────────────────────
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 3306
+    DB_USER: str = "medstock"
+    DB_PASSWORD: str = "medstock123"
+    DB_NAME: str = "medstock_db"
+
+    # ── Redis ───────────────────────────────────────────────
+    REDIS_URL: str = "redis://localhost:6379"
+
+    # ── JWT ─────────────────────────────────────────────────
+    SECRET_KEY: str = "medstock-super-secret-key-2026-unifranz"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 horas
+
+    # ── Firebase ────────────────────────────────────────────
+    FIREBASE_CREDENTIALS_PATH: str = ""
+
+    @property
+    def DATABASE_URL(self) -> str:
+        return (
+            f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}"
+            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            f"?charset=utf8mb4"
+        )
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\database.py
+==================================================
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import QueuePool
+from app.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+# ── Motor de base de datos ──────────────────────────────────────────────────
+engine = create_engine(
+    settings.DATABASE_URL,
+    poolclass=QueuePool,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,          # Verifica conexión antes de usar
+    pool_recycle=3600,           # Recicla conexiones cada 1 hora
+    echo=settings.DEBUG,         # Muestra SQL en consola si DEBUG=True
+    connect_args={
+        "connect_timeout": 10,
+    },
+)
+
+# ── Evento: forzar utf8mb4 en cada conexión ─────────────────────────────────
+@event.listens_for(engine, "connect")
+def set_mysql_charset(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
+    cursor.execute("SET CHARACTER SET utf8mb4")
+    cursor.close()
+
+# ── Sesión ──────────────────────────────────────────────────────────────────
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
+
+# ── Base para todos los modelos ─────────────────────────────────────────────
+Base = declarative_base()
+
+
+# ── Dependencia FastAPI ─────────────────────────────────────────────────────
+def get_db():
+    """
+    Generador de sesión de base de datos.
+    Se inyecta como dependencia en los endpoints con Depends(get_db).
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error en sesión de BD: {e}")
+        raise
+    finally:
+        db.close()
+
+
+def check_db_connection() -> bool:
+    """Verifica que la conexión a MySQL esté activa."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        logger.error(f"No se pudo conectar a MySQL: {e}")
+        return False
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\main.py
+==================================================
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import logging
+
+from app.config import settings
+from app.database import Base, engine, check_db_connection
+
+# Importar modelos para que SQLAlchemy los registre
+from app.models import User, Supplier, Client, Category, Product, ProductBatch, Movement, Alert, AuditLog, OfflineSyncQueue  # noqa: F401
+
+# Importar routers
+from app.routers import auth, users, categories, products, movements, alerts, suppliers, clients
+
+# ── Logger ───────────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.DEBUG if settings.DEBUG else logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger("medstock")
+
+# ── Crear tablas en la BD (solo en desarrollo) ────────────────────────────────
+# En producción usar: alembic upgrade head
+Base.metadata.create_all(bind=engine)
+
+# ── Instancia FastAPI ─────────────────────────────────────────────────────────
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    description="""
+## MedStock Pro API
+
+Sistema Inteligente de Gestión de Inventario Médico  
+**Caso:** EA Medical S.R.L. | **UNIFRANZ 2026**
+
+### Módulos disponibles
+- **Auth** — Login JWT, gestión de sesión
+- **Users** — CRUD de usuarios con roles
+- **Products** — Catálogo de productos y lotes
+- **Categories** — Categorías de productos
+- **Movements** — Ingresos, salidas y ajustes de stock
+- **Alerts** — Alertas de stock mínimo y vencimiento
+- **Suppliers** — Proveedores
+- **Clients** — Clientes e instituciones
+    """,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,   # ← cambiar a False cuando allow_origins="*"
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
+# ── Registrar routers ─────────────────────────────────────────────────────────
+app.include_router(auth.router,       prefix="/api/auth",       tags=["Autenticación"])
+app.include_router(users.router,      prefix="/api/users",      tags=["Usuarios"])
+app.include_router(categories.router, prefix="/api/categories", tags=["Categorías"])
+app.include_router(products.router,   prefix="/api/products",   tags=["Productos"])
+app.include_router(movements.router,  prefix="/api/movements",  tags=["Movimientos"])
+app.include_router(alerts.router,     prefix="/api/alerts",     tags=["Alertas"])
+app.include_router(suppliers.router,  prefix="/api/suppliers",  tags=["Proveedores"])
+app.include_router(clients.router,    prefix="/api/clients",    tags=["Clientes"])
+
+# ── Endpoints raíz ────────────────────────────────────────────────────────────
+@app.get("/", tags=["Sistema"], summary="Información de la API")
+def root():
+    return {
+        "app":     settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "status":  "online",
+        "docs":    "/docs",
+        "redoc":   "/redoc",
+    }
+
+
+@app.get("/health", tags=["Sistema"], summary="Estado de salud del sistema")
+def health():
+    """
+    Verifica que la API y la base de datos MySQL estén operativas.
+    Útil para monitoreo en producción (Railway/Render).
+    """
+    db_ok = check_db_connection()
+    status_code = 200 if db_ok else 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "api":      "ok",
+            "database": "ok" if db_ok else "error",
+            "version":  settings.APP_VERSION,
+        },
+    )
+
+
+# ── Eventos de ciclo de vida ──────────────────────────────────────────────────
+@app.on_event("startup")
+async def on_startup():
+    logger.info(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} iniciando...")
+    if check_db_connection():
+        logger.info("✅ Conexión a MySQL establecida correctamente.")
+    else:
+        logger.error("❌ No se pudo conectar a MySQL. Verifica las credenciales en .env")
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    logger.info("🛑 MedStock API apagándose...")
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\__init__.py
+==================================================
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\core\deps.py
+==================================================
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.core.security import decode_token
+from app.models.user import User
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+# ── Dependencia base: usuario autenticado ───────────────────────────────────
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Extrae y valida el token JWT del header Authorization.
+    Retorna el usuario activo correspondiente.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token inválido o expirado. Por favor inicia sesión nuevamente.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    payload = decode_token(token)
+    if payload is None:
+        raise credentials_exception
+
+    user_id: str = payload.get("sub")
+    if user_id is None:
+        raise credentials_exception
+
+    user = db.query(User).filter(
+        User.id == int(user_id),
+        User.is_active == True,
+    ).first()
+
+    if user is None:
+        raise credentials_exception
+
+    return user
+
+
+# ── Solo administrador ──────────────────────────────────────────────────────
+def require_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso denegado: se requiere rol Administrador.",
+        )
+    return current_user
+
+
+# ── Administrador o Supervisor ──────────────────────────────────────────────
+def require_supervisor_or_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role not in ("admin", "supervisor"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso denegado: se requiere rol Supervisor o Administrador.",
+        )
+    return current_user
+
+
+# ── Cualquier rol (solo verifica que esté activo) ───────────────────────────
+def require_any_role(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    return current_user
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\core\security.py
+==================================================
+import bcrypt
+from datetime import datetime, timedelta
+from typing import Optional
+from jose import JWTError, jwt
+from app.config import settings
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(
+        plain_password.encode('utf-8'),
+        hashed_password.encode('utf-8')
+    )
+
+def get_password_hash(password: str) -> str:
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (
+        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    to_encode.update({"exp": expire, "iat": datetime.utcnow()})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+def decode_token(token: str) -> Optional[dict]:
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except JWTError:
+        return None
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\core\__init__.py
+==================================================
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\models\alert.py
+==================================================
+from sqlalchemy import (
+    Column, Integer, String, Boolean, DateTime,
+    Text, Numeric, ForeignKey, Date, Enum as SAEnum,
+)
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.database import Base
+
+
+class Alert(Base):
+    __tablename__ = "alerts"
+
+    id          = Column(Integer,        primary_key=True, autoincrement=True)
+    product_id  = Column(Integer,        ForeignKey("products.id"),        nullable=True)
+    batch_id    = Column(Integer,        ForeignKey("product_batches.id"), nullable=True)
+    alert_type  = Column(String(30),     nullable=False)
+    # Valores: stock_minimo | vencimiento_7 | vencimiento_15 | vencimiento_30
+    title       = Column(String(200),    nullable=False)
+    message     = Column(Text,           nullable=False)
+    severity    = Column(
+                      SAEnum("info", "warning", "critical", name="alert_severity_enum"),
+                      nullable=False,
+                      default="warning",
+                  )
+    is_read     = Column(Boolean,        nullable=False, default=False)
+    is_resolved = Column(Boolean,        nullable=False, default=False)
+    resolved_by = Column(Integer,        ForeignKey("users.id"), nullable=True)
+    resolved_at = Column(DateTime,       nullable=True)
+    expiry_date = Column(Date,           nullable=True)
+    stock_value = Column(Numeric(10, 2), nullable=True)
+    created_at  = Column(DateTime,       nullable=False, server_default=func.now())
+
+    # ── Relaciones ─────────────────────────────────────────────────────────
+    product = relationship("Product", back_populates="alerts")
+
+    def __repr__(self) -> str:
+        return f"<Alert id={self.id} type={self.alert_type} severity={self.severity}>"
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id         = Column(Integer,      primary_key=True, autoincrement=True)
+    user_id    = Column(Integer,      ForeignKey("users.id"), nullable=True)
+    action     = Column(String(50),   nullable=False)
+    # Valores: CREATE | UPDATE | DELETE | LOGIN | LOGOUT
+    table_name = Column(String(50),   nullable=True)
+    record_id  = Column(Integer,      nullable=True)
+    old_values = Column(Text,         nullable=True)   # JSON serializado
+    new_values = Column(Text,         nullable=True)   # JSON serializado
+    ip_address = Column(String(45),   nullable=True)
+    user_agent = Column(String(255),  nullable=True)
+    created_at = Column(DateTime,     nullable=False, server_default=func.now())
+
+    # ── Relaciones ─────────────────────────────────────────────────────────
+    user = relationship("User", back_populates="audit_logs")
+
+    def __repr__(self) -> str:
+        return f"<AuditLog id={self.id} action={self.action} table={self.table_name}>"
+
+
+class OfflineSyncQueue(Base):
+    __tablename__ = "offline_sync_queue"
+
+    id         = Column(Integer,    primary_key=True, autoincrement=True)
+    device_id  = Column(String(100), nullable=False, index=True)
+    user_id    = Column(Integer,    ForeignKey("users.id"), nullable=True)
+    operation  = Column(
+                     SAEnum("INSERT", "UPDATE", "DELETE", name="sync_operation_enum"),
+                     nullable=False,
+                 )
+    table_name = Column(String(50), nullable=False)
+    payload    = Column(Text,       nullable=False)   # JSON serializado
+    is_synced  = Column(Boolean,    nullable=False, default=False)
+    synced_at  = Column(DateTime,   nullable=True)
+    error_msg  = Column(Text,       nullable=True)
+    created_at = Column(DateTime,   nullable=False, server_default=func.now())
+
+    def __repr__(self) -> str:
+        return f"<OfflineSyncQueue id={self.id} device={self.device_id} op={self.operation}>"
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\models\client.py
+==================================================
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Enum as SAEnum
+from sqlalchemy.sql import func
+from app.database import Base
+
+
+class Client(Base):
+    __tablename__ = "clients"
+
+    id             = Column(Integer,     primary_key=True, autoincrement=True)
+    name           = Column(String(200), nullable=False)
+    client_type    = Column(
+                         SAEnum("publico", "privado", name="client_type_enum"),
+                         nullable=False,
+                         default="publico",
+                     )
+    contact_person = Column(String(150), nullable=True)
+    phone          = Column(String(30),  nullable=True)
+    email          = Column(String(100), nullable=True)
+    address        = Column(Text,        nullable=True)
+    nit            = Column(String(20),  nullable=True)
+    is_active      = Column(Boolean,     nullable=False, default=True)
+    notes          = Column(Text,        nullable=True)
+    created_at     = Column(DateTime,    nullable=False, server_default=func.now())
+    updated_at     = Column(DateTime,    nullable=True,  onupdate=func.now())
+
+    def __repr__(self) -> str:
+        return f"<Client id={self.id} name={self.name} type={self.client_type}>"
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\models\movement.py
+==================================================
+from sqlalchemy import (
+    Column, Integer, String, DateTime, Text,
+    Numeric, ForeignKey, Enum as SAEnum,
+)
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.database import Base
+
+
+class Movement(Base):
+    __tablename__ = "movements"
+
+    id             = Column(Integer,        primary_key=True, autoincrement=True)
+    product_id     = Column(Integer,        ForeignKey("products.id"),       nullable=False)
+    batch_id       = Column(Integer,        ForeignKey("product_batches.id"), nullable=True)
+    responsible_id = Column(Integer,        ForeignKey("users.id"),           nullable=False)
+    client_id      = Column(Integer,        ForeignKey("clients.id"),         nullable=True)
+
+    movement_type  = Column(
+                         SAEnum("ingreso", "salida", "ajuste", "baja", name="movement_type_enum"),
+                         nullable=False,
+                     )
+    reason         = Column(
+                         SAEnum(
+                             "compra",
+                             "devolucion",
+                             "venta",
+                             "consumo_interno",
+                             "prestamo",
+                             "baja_danio",
+                             "baja_vencimiento",
+                             "ajuste_manual",
+                             "transferencia",
+                             name="movement_reason_enum",
+                         ),
+                         nullable=True,
+                     )
+
+    quantity       = Column(Numeric(10, 2), nullable=False)
+    stock_before   = Column(Numeric(10, 2), nullable=False)
+    stock_after    = Column(Numeric(10, 2), nullable=False)
+    unit_price     = Column(Numeric(12, 2), nullable=True)
+    destination    = Column(String(200),    nullable=True)
+    reference_doc  = Column(String(100),    nullable=True)
+    notes          = Column(Text,           nullable=True)
+    created_at     = Column(DateTime,       nullable=False, server_default=func.now())
+
+    # ── Relaciones ─────────────────────────────────────────────────────────
+    product     = relationship("Product", back_populates="movements")
+    responsible = relationship("User",    back_populates="movements", foreign_keys=[responsible_id])
+    client      = relationship("Client")
+    batch       = relationship("ProductBatch")
+
+    def __repr__(self) -> str:
+        return f"<Movement id={self.id} type={self.movement_type} qty={self.quantity}>"
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\models\product.py
+==================================================
+from sqlalchemy import (
+    Column, Integer, String, Boolean, DateTime,
+    Text, Numeric, ForeignKey, Date,
+)
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.database import Base
+
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id          = Column(Integer,     primary_key=True, autoincrement=True)
+    name        = Column(String(100), nullable=False, unique=True)
+    description = Column(Text,        nullable=True)
+    color       = Column(String(7),   nullable=True)   # Hex: #3B82F6
+    icon        = Column(String(50),  nullable=True)   # Nombre del ícono
+    is_active   = Column(Boolean,     nullable=False, default=True)
+    created_at  = Column(DateTime,    nullable=False, server_default=func.now())
+
+    # ── Relaciones ─────────────────────────────────────────────────────────
+    products = relationship("Product", back_populates="category")
+
+    def __repr__(self) -> str:
+        return f"<Category id={self.id} name={self.name}>"
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id                   = Column(Integer,       primary_key=True, autoincrement=True)
+    code                 = Column(String(50),    nullable=False, unique=True, index=True)
+    barcode              = Column(String(100),   nullable=True,  unique=True, index=True)
+    qr_code              = Column(String(500),   nullable=True)
+    name                 = Column(String(200),   nullable=False)
+    description          = Column(Text,          nullable=True)
+    category_id          = Column(Integer,       ForeignKey("categories.id"), nullable=True)
+    unit                 = Column(String(30),    nullable=False)
+    current_stock        = Column(Numeric(10, 2), nullable=False, default=0.00)
+    min_stock            = Column(Numeric(10, 2), nullable=False, default=5.00)
+    unit_price           = Column(Numeric(12, 2), nullable=True)
+    location             = Column(String(100),   nullable=True)
+    image_url            = Column(String(500),   nullable=True)
+    technical_sheet_url  = Column(String(500),   nullable=True)
+    requires_expiry      = Column(Boolean,       nullable=False, default=True)
+    is_active            = Column(Boolean,       nullable=False, default=True)
+    created_at           = Column(DateTime,      nullable=False, server_default=func.now())
+    updated_at           = Column(DateTime,      nullable=True,  onupdate=func.now())
+
+    # ── Relaciones ─────────────────────────────────────────────────────────
+    category  = relationship("Category",     back_populates="products")
+    batches   = relationship("ProductBatch", back_populates="product", cascade="all, delete-orphan")
+    movements = relationship("Movement",     back_populates="product")
+    alerts    = relationship("Alert",        back_populates="product")
+
+    def __repr__(self) -> str:
+        return f"<Product id={self.id} code={self.code} name={self.name}>"
+
+    @property
+    def is_low_stock(self) -> bool:
+        return float(self.current_stock) <= float(self.min_stock)
+
+
+class ProductBatch(Base):
+    __tablename__ = "product_batches"
+
+    id             = Column(Integer,        primary_key=True, autoincrement=True)
+    product_id     = Column(Integer,        ForeignKey("products.id"), nullable=False)
+    supplier_id    = Column(Integer,        ForeignKey("suppliers.id"), nullable=True)
+    batch_number   = Column(String(100),    nullable=True)
+    serial_number  = Column(String(100),    nullable=True)
+    quantity       = Column(Numeric(10, 2), nullable=False, default=0.00)
+    expiry_date    = Column(Date,           nullable=True)
+    entry_date     = Column(Date,           nullable=False)
+    purchase_price = Column(Numeric(12, 2), nullable=True)
+    is_active      = Column(Boolean,        nullable=False, default=True)
+    notes          = Column(Text,           nullable=True)
+    created_at     = Column(DateTime,       nullable=False, server_default=func.now())
+
+    # ── Relaciones ─────────────────────────────────────────────────────────
+    product  = relationship("Product",  back_populates="batches")
+    supplier = relationship("Supplier", back_populates="product_batches")
+
+    def __repr__(self) -> str:
+        return f"<ProductBatch id={self.id} product_id={self.product_id} lot={self.batch_number}>"
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\models\supplier.py
+==================================================
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.database import Base
+
+
+class Supplier(Base):
+    __tablename__ = "suppliers"
+
+    id             = Column(Integer,     primary_key=True, autoincrement=True)
+    name           = Column(String(200), nullable=False)
+    contact_person = Column(String(150), nullable=True)
+    phone          = Column(String(30),  nullable=True)
+    email          = Column(String(100), nullable=True)
+    address        = Column(Text,        nullable=True)
+    nit            = Column(String(20),  nullable=True)
+    is_active      = Column(Boolean,     nullable=False, default=True)
+    notes          = Column(Text,        nullable=True)
+    created_at     = Column(DateTime,    nullable=False, server_default=func.now())
+    updated_at     = Column(DateTime,    nullable=True,  onupdate=func.now())
+
+    # ── Relaciones ─────────────────────────────────────────────────────────
+    product_batches = relationship("ProductBatch", back_populates="supplier")
+
+    def __repr__(self) -> str:
+        return f"<Supplier id={self.id} name={self.name}>"
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\models\user.py
+==================================================
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SAEnum
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id               = Column(Integer,      primary_key=True, autoincrement=True)
+    username         = Column(String(50),   nullable=False, unique=True, index=True)
+    email            = Column(String(100),  nullable=False, unique=True)
+    full_name        = Column(String(150),  nullable=False)
+    hashed_password  = Column(String(255),  nullable=False)
+    role             = Column(
+                           SAEnum("admin", "supervisor", "almacenero", name="user_role"),
+                           nullable=False,
+                           default="almacenero",
+                       )
+    is_active        = Column(Boolean,      nullable=False, default=True)
+    phone            = Column(String(20),   nullable=True)
+    avatar_url       = Column(String(500),  nullable=True)
+    firebase_token   = Column(String(500),  nullable=True)   # Token FCM para notificaciones push
+    last_login       = Column(DateTime,     nullable=True)
+    created_at       = Column(DateTime,     nullable=False, server_default=func.now())
+    updated_at       = Column(DateTime,     nullable=True,  onupdate=func.now())
+
+    # ── Relaciones ─────────────────────────────────────────────────────────
+    movements  = relationship(
+        "Movement",
+        back_populates="responsible",
+        foreign_keys="Movement.responsible_id",
+    )
+    audit_logs = relationship("AuditLog", back_populates="user")
+
+    def __repr__(self) -> str:
+        return f"<User id={self.id} username={self.username} role={self.role}>"
+
+    @property
+    def role_label(self) -> str:
+        labels = {
+            "admin":      "Administrador",
+            "supervisor": "Supervisor",
+            "almacenero": "Almacenero",
+        }
+        return labels.get(self.role, self.role)
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\models\__init__.py
+==================================================
+# Importar todos los modelos para que SQLAlchemy los registre
+# y Alembic pueda detectarlos en las migraciones.
+from app.models.user import User
+from app.models.supplier import Supplier
+from app.models.client import Client
+from app.models.product import Category, Product, ProductBatch
+from app.models.movement import Movement
+from app.models.alert import Alert, AuditLog, OfflineSyncQueue
+
+__all__ = [
+    "User",
+    "Supplier",
+    "Client",
+    "Category",
+    "Product",
+    "ProductBatch",
+    "Movement",
+    "Alert",
+    "AuditLog",
+    "OfflineSyncQueue",
+]
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\routers\alerts.py
+==================================================
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from typing import Optional
+from datetime import datetime
+
+from app.database import get_db
+from app.models.alert import Alert
+from app.models.user import User
+from app.core.deps import get_current_user
+from app.schemas.alert import AlertResponse, AlertListResponse
+
+router = APIRouter()
+
+
+@router.get("/", response_model=AlertListResponse)
+def list_alerts(
+    skip:       int            = Query(0, ge=0),
+    limit:      int            = Query(50, ge=1, le=200),
+    is_read:    Optional[bool] = Query(None),
+    is_resolved:Optional[bool] = Query(False),
+    severity:   Optional[str]  = Query(None),
+    db:         Session        = Depends(get_db),
+    _:          User           = Depends(get_current_user),
+):
+    """Lista alertas del sistema con filtros."""
+    query = db.query(Alert)
+
+    if is_read is not None:
+        query = query.filter(Alert.is_read == is_read)
+    if is_resolved is not None:
+        query = query.filter(Alert.is_resolved == is_resolved)
+    if severity:
+        query = query.filter(Alert.severity == severity)
+
+    total = query.count()
+    items = query.order_by(Alert.created_at.desc()).offset(skip).limit(limit).all()
+
+    return AlertListResponse(total=total, items=items)
+
+
+@router.get("/unread-count")
+def unread_count(
+    db: Session = Depends(get_db),
+    _:  User    = Depends(get_current_user),
+):
+    """Retorna el conteo de alertas no leídas (para el badge de notificaciones)."""
+    count = db.query(Alert).filter(
+        Alert.is_read == False,
+        Alert.is_resolved == False,
+    ).count()
+    return {"unread": count}
+
+
+@router.post("/{alert_id}/mark-read")
+def mark_alert_read(
+    alert_id: int,
+    db:       Session = Depends(get_db),
+    _:        User    = Depends(get_current_user),
+):
+    """Marca una alerta como leída."""
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada.")
+
+    alert.is_read = True
+    db.commit()
+    return {"message": "Alerta marcada como leída."}
+
+
+@router.post("/mark-all-read")
+def mark_all_read(
+    db: Session = Depends(get_db),
+    _:  User    = Depends(get_current_user),
+):
+    """Marca todas las alertas como leídas."""
+    db.query(Alert).filter(Alert.is_read == False).update({"is_read": True})
+    db.commit()
+    return {"message": "Todas las alertas marcadas como leídas."}
+
+
+@router.post("/{alert_id}/resolve")
+def resolve_alert(
+    alert_id: int,
+    db:       Session = Depends(get_db),
+    current:  User    = Depends(get_current_user),
+):
+    """Marca una alerta como resuelta."""
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada.")
+
+    alert.is_resolved = True
+    alert.is_read     = True
+    alert.resolved_by = current.id
+    alert.resolved_at = datetime.utcnow()
+    db.commit()
+    return {"message": "Alerta resuelta."}
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\routers\auth.py
+==================================================
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from datetime import datetime
+
+from app.database import get_db
+from app.models.user import User
+from app.models.alert import AuditLog
+from app.core.security import verify_password, create_access_token, get_password_hash
+from app.core.deps import get_current_user
+from app.schemas.auth import Token, UserCreate, UserResponse
+
+router = APIRouter()
+
+
+@router.post("/login", response_model=Token)
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    """
+    Inicio de sesión con usuario y contraseña.
+    Retorna token JWT + datos del usuario.
+    """
+    user = db.query(User).filter(User.username == form_data.username).first()
+
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuario o contraseña incorrectos.",
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Usuario desactivado. Contacta al administrador.",
+        )
+
+    # Actualizar last_login
+    user.last_login = datetime.utcnow()
+    db.commit()
+
+    # Registrar en auditoría
+    audit = AuditLog(
+        user_id=user.id,
+        action="LOGIN",
+        table_name="users",
+        record_id=user.id,
+    )
+    db.add(audit)
+    db.commit()
+
+    token = create_access_token(
+        data={"sub": str(user.id), "role": user.role, "username": user.username}
+    )
+
+    return Token(
+        access_token=token,
+        token_type="bearer",
+        user={
+            "id":        user.id,
+            "username":  user.username,
+            "full_name": user.full_name,
+            "email":     user.email,
+            "role":      user.role,
+        },
+    )
+
+
+@router.get("/me", response_model=UserResponse)
+def get_me(current_user: User = Depends(get_current_user)):
+    """Retorna los datos del usuario autenticado."""
+    return current_user
+
+
+@router.post("/setup-admin", response_model=UserResponse)
+def setup_admin(user_data: UserCreate, db: Session = Depends(get_db)):
+    """
+    Crea el primer usuario administrador.
+    Solo funciona si no existe ningún usuario en la BD.
+    """
+    if db.query(User).count() > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El setup inicial ya fue realizado.",
+        )
+    user = User(
+        username=user_data.username,
+        email=user_data.email,
+        full_name=user_data.full_name,
+        hashed_password=get_password_hash(user_data.password),
+        role="admin",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\routers\categories.py
+==================================================
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.product import Category
+from app.models.user import User
+from app.core.deps import get_current_user, require_admin
+from app.schemas.product import CategoryCreate, CategoryUpdate, CategoryResponse
+
+router = APIRouter()
+
+
+@router.get("/", response_model=list[CategoryResponse])
+def list_categories(
+    db: Session = Depends(get_db),
+    _:  User    = Depends(get_current_user),
+):
+    """Lista todas las categorías activas."""
+    return db.query(Category).filter(Category.is_active == True).all()
+
+
+@router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
+def create_category(
+    data: CategoryCreate,
+    db:   Session = Depends(get_db),
+    _:    User    = Depends(require_admin),
+):
+    """Crea una nueva categoría. Solo Administrador."""
+    if db.query(Category).filter(Category.name == data.name).first():
+        raise HTTPException(status_code=400, detail="Ya existe una categoría con ese nombre.")
+
+    category = Category(**data.model_dump())
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+@router.get("/{category_id}", response_model=CategoryResponse)
+def get_category(
+    category_id: int,
+    db:          Session = Depends(get_db),
+    _:           User    = Depends(get_current_user),
+):
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada.")
+    return category
+
+
+@router.put("/{category_id}", response_model=CategoryResponse)
+def update_category(
+    category_id: int,
+    data:        CategoryUpdate,
+    db:          Session = Depends(get_db),
+    _:           User    = Depends(require_admin),
+):
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada.")
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(category, field, value)
+
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+@router.delete("/{category_id}")
+def delete_category(
+    category_id: int,
+    db:          Session = Depends(get_db),
+    _:           User    = Depends(require_admin),
+):
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada.")
+
+    category.is_active = False
+    db.commit()
+    return {"message": f"Categoría '{category.name}' desactivada."}
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\routers\clients.py
+==================================================
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from typing import Optional
+
+from app.database import get_db
+from app.models.client import Client
+from app.models.user import User
+from app.core.deps import get_current_user, require_supervisor_or_admin
+from app.schemas.client import ClientCreate, ClientUpdate, ClientResponse, ClientListResponse
+
+router = APIRouter()
+
+
+@router.get("/", response_model=ClientListResponse)
+def list_clients(
+    skip:        int            = Query(0, ge=0),
+    limit:       int            = Query(50, ge=1, le=200),
+    search:      Optional[str]  = Query(None),
+    client_type: Optional[str]  = Query(None),
+    db:          Session        = Depends(get_db),
+    _:           User           = Depends(get_current_user),
+):
+    query = db.query(Client).filter(Client.is_active == True)
+
+    if client_type:
+        query = query.filter(Client.client_type == client_type)
+    if search:
+        term = f"%{search}%"
+        query = query.filter(
+            Client.name.ilike(term) | Client.nit.ilike(term)
+        )
+
+    total = query.count()
+    items = query.order_by(Client.name).offset(skip).limit(limit).all()
+    return ClientListResponse(total=total, items=items)
+
+
+@router.post("/", response_model=ClientResponse, status_code=status.HTTP_201_CREATED)
+def create_client(
+    data: ClientCreate,
+    db:   Session = Depends(get_db),
+    _:    User    = Depends(require_supervisor_or_admin),
+):
+    client = Client(**data.model_dump())
+    db.add(client)
+    db.commit()
+    db.refresh(client)
+    return client
+
+
+@router.get("/{client_id}", response_model=ClientResponse)
+def get_client(
+    client_id: int,
+    db:        Session = Depends(get_db),
+    _:         User    = Depends(get_current_user),
+):
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado.")
+    return client
+
+
+@router.put("/{client_id}", response_model=ClientResponse)
+def update_client(
+    client_id: int,
+    data:      ClientUpdate,
+    db:        Session = Depends(get_db),
+    _:         User    = Depends(require_supervisor_or_admin),
+):
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado.")
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(client, field, value)
+
+    db.commit()
+    db.refresh(client)
+    return client
+
+
+@router.delete("/{client_id}")
+def deactivate_client(
+    client_id: int,
+    db:        Session = Depends(get_db),
+    _:         User    = Depends(require_supervisor_or_admin),
+):
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado.")
+
+    client.is_active = False
+    db.commit()
+    return {"message": f"Cliente '{client.name}' desactivado."}
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\routers\movements.py
+==================================================
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from sqlalchemy import and_
+from typing import Optional
+from datetime import datetime, date
+
+from app.database import get_db
+from app.models.product import Product
+from app.models.movement import Movement
+from app.models.user import User
+from app.core.deps import get_current_user, require_supervisor_or_admin
+from app.schemas.movement import MovementCreate, MovementResponse, MovementListResponse
+
+router = APIRouter()
+
+TIPOS_INGRESO = ("ingreso",)
+TIPOS_SALIDA  = ("salida", "baja", "ajuste")
+
+
+@router.get("/", response_model=MovementListResponse)
+def list_movements(
+    skip:          int            = Query(0, ge=0),
+    limit:         int            = Query(50, ge=1, le=200),
+    product_id:    Optional[int]  = Query(None),
+    movement_type: Optional[str]  = Query(None),
+    date_from:     Optional[date] = Query(None),
+    date_to:       Optional[date] = Query(None),
+    db:            Session        = Depends(get_db),
+    _:             User           = Depends(get_current_user),
+):
+    """Lista movimientos con filtros de producto, tipo y rango de fechas."""
+    query = db.query(Movement)
+
+    if product_id:
+        query = query.filter(Movement.product_id == product_id)
+    if movement_type:
+        query = query.filter(Movement.movement_type == movement_type)
+    if date_from:
+        query = query.filter(Movement.created_at >= datetime.combine(date_from, datetime.min.time()))
+    if date_to:
+        query = query.filter(Movement.created_at <= datetime.combine(date_to, datetime.max.time()))
+
+    total = query.count()
+    items = query.order_by(Movement.created_at.desc()).offset(skip).limit(limit).all()
+
+    return MovementListResponse(total=total, items=items)
+
+
+@router.post("/", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)
+def create_movement(
+    data:    MovementCreate,
+    db:      Session = Depends(get_db),
+    current: User    = Depends(get_current_user),
+):
+    """
+    Registra un movimiento de stock (ingreso, salida, ajuste o baja).
+    Actualiza el stock del producto automáticamente.
+    """
+    product = db.query(Product).filter(
+        Product.id == data.product_id,
+        Product.is_active == True,
+    ).first()
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado.")
+
+    stock_before = float(product.current_stock)
+
+    # Calcular nuevo stock según el tipo
+    if data.movement_type == "ingreso":
+        stock_after = stock_before + float(data.quantity)
+    elif data.movement_type in ("salida", "baja"):
+        if float(data.quantity) > stock_before:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Stock insuficiente. Disponible: {stock_before}, solicitado: {data.quantity}.",
+            )
+        stock_after = stock_before - float(data.quantity)
+    elif data.movement_type == "ajuste":
+        # En ajuste, quantity es el nuevo stock absoluto
+        stock_after = float(data.quantity)
+    else:
+        raise HTTPException(status_code=400, detail="Tipo de movimiento inválido.")
+
+    # Actualizar stock del producto
+    product.current_stock = stock_after
+
+    # Crear el registro de movimiento
+    movement = Movement(
+        product_id     = data.product_id,
+        batch_id       = data.batch_id,
+        responsible_id = current.id,
+        client_id      = data.client_id,
+        movement_type  = data.movement_type,
+        reason         = data.reason,
+        quantity       = data.quantity,
+        stock_before   = stock_before,
+        stock_after    = stock_after,
+        unit_price     = data.unit_price,
+        destination    = data.destination,
+        reference_doc  = data.reference_doc,
+        notes          = data.notes,
+    )
+
+    db.add(movement)
+    db.commit()
+    db.refresh(movement)
+    return movement
+
+
+@router.get("/{movement_id}", response_model=MovementResponse)
+def get_movement(
+    movement_id: int,
+    db:          Session = Depends(get_db),
+    _:           User    = Depends(get_current_user),
+):
+    movement = db.query(Movement).filter(Movement.id == movement_id).first()
+    if not movement:
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado.")
+    return movement
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\routers\products.py
+==================================================
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
+from typing import Optional
+
+from app.database import get_db
+from app.models.product import Product, ProductBatch
+from app.models.user import User
+from app.core.deps import get_current_user, require_admin, require_supervisor_or_admin
+from app.schemas.product import (
+    ProductCreate, ProductUpdate, ProductResponse, ProductListResponse,
+    ProductBatchCreate, ProductBatchResponse,
+)
+
+router = APIRouter()
+
+
+@router.get("/", response_model=ProductListResponse)
+def list_products(
+    skip:        int            = Query(0, ge=0),
+    limit:       int            = Query(50, ge=1, le=200),
+    search:      Optional[str]  = Query(None, description="Buscar por nombre, código o barcode"),
+    category_id: Optional[int]  = Query(None),
+    low_stock:   Optional[bool] = Query(None, description="Solo productos con stock bajo"),
+    is_active:   Optional[bool] = Query(True),
+    db:          Session        = Depends(get_db),
+    _:           User           = Depends(get_current_user),
+):
+    """Lista productos con filtros y paginación."""
+    query = db.query(Product).options(joinedload(Product.category))
+
+    if is_active is not None:
+        query = query.filter(Product.is_active == is_active)
+    if category_id:
+        query = query.filter(Product.category_id == category_id)
+    if search:
+        term = f"%{search}%"
+        query = query.filter(
+            or_(
+                Product.name.ilike(term),
+                Product.code.ilike(term),
+                Product.barcode.ilike(term),
+            )
+        )
+    if low_stock:
+        query = query.filter(Product.current_stock <= Product.min_stock)
+
+    total = query.count()
+    items = query.order_by(Product.name).offset(skip).limit(limit).all()
+
+    return ProductListResponse(total=total, items=items)
+
+
+@router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
+def create_product(
+    data: ProductCreate,
+    db:   Session = Depends(get_db),
+    _:    User    = Depends(require_supervisor_or_admin),
+):
+    """Crea un nuevo producto. Supervisor o Admin."""
+    if db.query(Product).filter(Product.code == data.code).first():
+        raise HTTPException(status_code=400, detail=f"Ya existe un producto con el código '{data.code}'.")
+    if data.barcode and db.query(Product).filter(Product.barcode == data.barcode).first():
+        raise HTTPException(status_code=400, detail="El barcode ya está registrado.")
+
+    product = Product(**data.model_dump())
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+@router.get("/{product_id}", response_model=ProductResponse)
+def get_product(
+    product_id: int,
+    db:         Session = Depends(get_db),
+    _:          User    = Depends(get_current_user),
+):
+    product = (
+        db.query(Product)
+        .options(joinedload(Product.category))
+        .filter(Product.id == product_id)
+        .first()
+    )
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado.")
+    return product
+
+
+@router.get("/by-code/{code}", response_model=ProductResponse)
+def get_product_by_code(
+    code: str,
+    db:   Session = Depends(get_db),
+    _:    User    = Depends(get_current_user),
+):
+    """Busca un producto por código interno o barcode. Útil para el scanner QR."""
+    product = (
+        db.query(Product)
+        .options(joinedload(Product.category))
+        .filter(or_(Product.code == code, Product.barcode == code))
+        .first()
+    )
+    if not product:
+        raise HTTPException(status_code=404, detail=f"No se encontró producto con código '{code}'.")
+    return product
+
+
+@router.put("/{product_id}", response_model=ProductResponse)
+def update_product(
+    product_id: int,
+    data:       ProductUpdate,
+    db:         Session = Depends(get_db),
+    _:          User    = Depends(require_supervisor_or_admin),
+):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado.")
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(product, field, value)
+
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+@router.delete("/{product_id}")
+def deactivate_product(
+    product_id: int,
+    db:         Session = Depends(get_db),
+    _:          User    = Depends(require_admin),
+):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado.")
+
+    product.is_active = False
+    db.commit()
+    return {"message": f"Producto '{product.name}' desactivado."}
+
+
+# ── Lotes ────────────────────────────────────────────────────────────────────
+@router.get("/{product_id}/batches", response_model=list[ProductBatchResponse])
+def list_batches(
+    product_id: int,
+    db:         Session = Depends(get_db),
+    _:          User    = Depends(get_current_user),
+):
+    """Lista los lotes de un producto."""
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado.")
+
+    return (
+        db.query(ProductBatch)
+        .filter(ProductBatch.product_id == product_id, ProductBatch.is_active == True)
+        .order_by(ProductBatch.expiry_date)
+        .all()
+    )
+
+
+@router.post("/{product_id}/batches", response_model=ProductBatchResponse, status_code=201)
+def create_batch(
+    product_id: int,
+    data:       ProductBatchCreate,
+    db:         Session = Depends(get_db),
+    _:          User    = Depends(get_current_user),
+):
+    """Registra un nuevo lote para un producto."""
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado.")
+
+    batch_data = data.model_dump()
+    batch_data["product_id"] = product_id
+    batch = ProductBatch(**batch_data)
+    db.add(batch)
+    db.commit()
+    db.refresh(batch)
+    return batch
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\routers\suppliers.py
+==================================================
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from typing import Optional
+
+from app.database import get_db
+from app.models.supplier import Supplier
+from app.models.user import User
+from app.core.deps import get_current_user, require_supervisor_or_admin
+from app.schemas.supplier import SupplierCreate, SupplierUpdate, SupplierResponse, SupplierListResponse
+
+router = APIRouter()
+
+
+@router.get("/", response_model=SupplierListResponse)
+def list_suppliers(
+    skip:   int           = Query(0, ge=0),
+    limit:  int           = Query(50, ge=1, le=200),
+    search: Optional[str] = Query(None),
+    db:     Session       = Depends(get_db),
+    _:      User          = Depends(get_current_user),
+):
+    query = db.query(Supplier).filter(Supplier.is_active == True)
+
+    if search:
+        term = f"%{search}%"
+        query = query.filter(
+            Supplier.name.ilike(term) | Supplier.nit.ilike(term)
+        )
+
+    total = query.count()
+    items = query.order_by(Supplier.name).offset(skip).limit(limit).all()
+    return SupplierListResponse(total=total, items=items)
+
+
+@router.post("/", response_model=SupplierResponse, status_code=status.HTTP_201_CREATED)
+def create_supplier(
+    data: SupplierCreate,
+    db:   Session = Depends(get_db),
+    _:    User    = Depends(require_supervisor_or_admin),
+):
+    supplier = Supplier(**data.model_dump())
+    db.add(supplier)
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+
+@router.get("/{supplier_id}", response_model=SupplierResponse)
+def get_supplier(
+    supplier_id: int,
+    db:          Session = Depends(get_db),
+    _:           User    = Depends(get_current_user),
+):
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado.")
+    return supplier
+
+
+@router.put("/{supplier_id}", response_model=SupplierResponse)
+def update_supplier(
+    supplier_id: int,
+    data:        SupplierUpdate,
+    db:          Session = Depends(get_db),
+    _:           User    = Depends(require_supervisor_or_admin),
+):
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado.")
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(supplier, field, value)
+
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+
+@router.delete("/{supplier_id}")
+def deactivate_supplier(
+    supplier_id: int,
+    db:          Session = Depends(get_db),
+    _:           User    = Depends(require_supervisor_or_admin),
+):
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado.")
+
+    supplier.is_active = False
+    db.commit()
+    return {"message": f"Proveedor '{supplier.name}' desactivado."}
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\routers\users.py
+==================================================
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from typing import Optional
+
+from app.database import get_db
+from app.models.user import User
+from app.core.security import get_password_hash, verify_password
+from app.core.deps import get_current_user, require_admin
+from app.schemas.user import UserCreate, UserUpdate, UserResponse, UserListResponse, UserChangePassword
+
+router = APIRouter()
+
+
+@router.get("/", response_model=UserListResponse)
+def list_users(
+    skip:      int            = Query(0, ge=0),
+    limit:     int            = Query(50, ge=1, le=200),
+    role:      Optional[str]  = Query(None),
+    is_active: Optional[bool] = Query(None),
+    search:    Optional[str]  = Query(None),
+    db:        Session        = Depends(get_db),
+    _:         User           = Depends(require_admin),
+):
+    """Lista todos los usuarios. Solo Administrador."""
+    query = db.query(User)
+
+    if role:
+        query = query.filter(User.role == role)
+    if is_active is not None:
+        query = query.filter(User.is_active == is_active)
+    if search:
+        term = f"%{search}%"
+        query = query.filter(
+            User.username.ilike(term)
+            | User.full_name.ilike(term)
+            | User.email.ilike(term)
+        )
+
+    total = query.count()
+    items = query.order_by(User.created_at.desc()).offset(skip).limit(limit).all()
+
+    return UserListResponse(total=total, items=items)
+
+
+@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(
+    user_data: UserCreate,
+    db:        Session = Depends(get_db),
+    _:         User    = Depends(require_admin),
+):
+    """Crea un nuevo usuario. Solo Administrador."""
+    if db.query(User).filter(User.username == user_data.username).first():
+        raise HTTPException(status_code=400, detail="El nombre de usuario ya existe.")
+    if db.query(User).filter(User.email == user_data.email).first():
+        raise HTTPException(status_code=400, detail="El email ya está registrado.")
+
+    user = User(
+        username=user_data.username,
+        email=user_data.email,
+        full_name=user_data.full_name,
+        hashed_password=get_password_hash(user_data.password),
+        role=user_data.role,
+        phone=user_data.phone,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.get("/{user_id}", response_model=UserResponse)
+def get_user(
+    user_id: int,
+    db:      Session = Depends(get_db),
+    current: User    = Depends(get_current_user),
+):
+    """Obtiene un usuario por ID. Admin ve todos; otros solo su perfil."""
+    if current.role != "admin" and current.id != user_id:
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    return user
+
+
+@router.put("/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id:   int,
+    user_data: UserUpdate,
+    db:        Session = Depends(get_db),
+    current:   User    = Depends(get_current_user),
+):
+    """Actualiza datos de un usuario. Admin edita cualquiera; otros solo su perfil."""
+    if current.role != "admin" and current.id != user_id:
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+
+    update_data = user_data.model_dump(exclude_unset=True)
+
+    # Solo admin puede cambiar el rol y activar/desactivar
+    if current.role != "admin":
+        update_data.pop("role", None)
+        update_data.pop("is_active", None)
+
+    for field, value in update_data.items():
+        setattr(user, field, value)
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/{user_id}/change-password")
+def change_password(
+    user_id:  int,
+    data:     UserChangePassword,
+    db:       Session = Depends(get_db),
+    current:  User    = Depends(get_current_user),
+):
+    """Cambia la contraseña de un usuario."""
+    if current.role != "admin" and current.id != user_id:
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+
+    if not verify_password(data.current_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Contraseña actual incorrecta.")
+
+    user.hashed_password = get_password_hash(data.new_password)
+    db.commit()
+    return {"message": "Contraseña actualizada correctamente."}
+
+
+@router.delete("/{user_id}")
+def deactivate_user(
+    user_id: int,
+    db:      Session = Depends(get_db),
+    _:       User    = Depends(require_admin),
+):
+    """Desactiva un usuario (no lo elimina). Solo Administrador."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    if user.id == user_id and user.role == "admin":
+        # Evitar que el admin se desactive a sí mismo
+        pass
+
+    user.is_active = False
+    db.commit()
+    return {"message": f"Usuario '{user.username}' desactivado."}
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\routers\__init__.py
+==================================================
+from app.routers import auth, users, categories, products, movements, alerts, suppliers, clients
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\schemas\alert.py
+==================================================
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime, date
+from decimal import Decimal
+
+
+class AlertResponse(BaseModel):
+    id:          int
+    product_id:  Optional[int]     = None
+    batch_id:    Optional[int]     = None
+    alert_type:  str
+    title:       str
+    message:     str
+    severity:    str
+    is_read:     bool
+    is_resolved: bool
+    expiry_date: Optional[date]    = None
+    stock_value: Optional[Decimal] = None
+    created_at:  datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AlertListResponse(BaseModel):
+    total: int
+    items: list[AlertResponse]
+
+
+class AlertResolve(BaseModel):
+    alert_id: int
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\schemas\auth.py
+==================================================
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class TokenUserData(BaseModel):
+    id:        int
+    username:  str
+    full_name: str
+    email:     str
+    role:      str
+
+    model_config = {"from_attributes": True}
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type:   str
+    user:         TokenUserData
+
+
+class UserCreate(BaseModel):
+    username:  str
+    email:     EmailStr
+    full_name: str
+    password:  str
+    role:      str = "almacenero"
+    phone:     Optional[str] = None
+
+
+class UserResponse(BaseModel):
+    id:        int
+    username:  str
+    email:     str
+    full_name: str
+    role:      str
+    is_active: bool
+    phone:     Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\schemas\client.py
+==================================================
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
+
+class ClientBase(BaseModel):
+    name:           str
+    client_type:    str = "publico"   # publico | privado
+    contact_person: Optional[str] = None
+    phone:          Optional[str] = None
+    email:          Optional[str] = None
+    address:        Optional[str] = None
+    nit:            Optional[str] = None
+    notes:          Optional[str] = None
+
+
+class ClientCreate(ClientBase):
+    pass
+
+
+class ClientUpdate(BaseModel):
+    name:           Optional[str]  = None
+    client_type:    Optional[str]  = None
+    contact_person: Optional[str]  = None
+    phone:          Optional[str]  = None
+    email:          Optional[str]  = None
+    address:        Optional[str]  = None
+    nit:            Optional[str]  = None
+    notes:          Optional[str]  = None
+    is_active:      Optional[bool] = None
+
+
+class ClientResponse(ClientBase):
+    id:         int
+    is_active:  bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class ClientListResponse(BaseModel):
+    total: int
+    items: list[ClientResponse]
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\schemas\movement.py
+==================================================
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+from decimal import Decimal
+
+
+class MovementCreate(BaseModel):
+    product_id:    int
+    movement_type: str                 # ingreso | salida | ajuste | baja
+    quantity:      Decimal
+    reason:        Optional[str]     = None
+    batch_id:      Optional[int]     = None
+    client_id:     Optional[int]     = None
+    unit_price:    Optional[Decimal] = None
+    destination:   Optional[str]     = None
+    reference_doc: Optional[str]     = None
+    notes:         Optional[str]     = None
+
+
+class MovementResponse(BaseModel):
+    id:             int
+    product_id:     int
+    movement_type:  str
+    reason:         Optional[str]     = None
+    quantity:       Decimal
+    stock_before:   Decimal
+    stock_after:    Decimal
+    unit_price:     Optional[Decimal] = None
+    destination:    Optional[str]     = None
+    reference_doc:  Optional[str]     = None
+    notes:          Optional[str]     = None
+    responsible_id: int
+    client_id:      Optional[int]     = None
+    batch_id:       Optional[int]     = None
+    created_at:     datetime
+
+    model_config = {"from_attributes": True}
+
+
+class MovementListResponse(BaseModel):
+    total: int
+    items: list[MovementResponse]
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\schemas\product.py
+==================================================
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime, date
+from decimal import Decimal
+
+
+# ── Category ────────────────────────────────────────────────────────────────
+class CategoryBase(BaseModel):
+    name:        str
+    description: Optional[str]   = None
+    color:       Optional[str]   = None
+    icon:        Optional[str]   = None
+
+
+class CategoryCreate(CategoryBase):
+    pass
+
+
+class CategoryUpdate(BaseModel):
+    name:        Optional[str]  = None
+    description: Optional[str]  = None
+    color:       Optional[str]  = None
+    icon:        Optional[str]  = None
+    is_active:   Optional[bool] = None
+
+
+class CategoryResponse(CategoryBase):
+    id:        int
+    is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Product ─────────────────────────────────────────────────────────────────
+class ProductBase(BaseModel):
+    code:                str
+    name:                str
+    unit:                str
+    min_stock:           Decimal = Decimal("5.00")
+    category_id:         Optional[int]     = None
+    barcode:             Optional[str]     = None
+    description:         Optional[str]     = None
+    unit_price:          Optional[Decimal] = None
+    location:            Optional[str]     = None
+    image_url:           Optional[str]     = None
+    technical_sheet_url: Optional[str]     = None
+    requires_expiry:     bool              = True
+
+
+class ProductCreate(ProductBase):
+    pass
+
+
+class ProductUpdate(BaseModel):
+    name:                Optional[str]     = None
+    barcode:             Optional[str]     = None
+    description:         Optional[str]     = None
+    category_id:         Optional[int]     = None
+    unit:                Optional[str]     = None
+    min_stock:           Optional[Decimal] = None
+    unit_price:          Optional[Decimal] = None
+    location:            Optional[str]     = None
+    image_url:           Optional[str]     = None
+    technical_sheet_url: Optional[str]     = None
+    requires_expiry:     Optional[bool]    = None
+    is_active:           Optional[bool]    = None
+
+
+class ProductResponse(ProductBase):
+    id:            int
+    current_stock: Decimal
+    is_active:     bool
+    is_low_stock:  bool
+    qr_code:       Optional[str]      = None
+    category:      Optional[CategoryResponse] = None
+    created_at:    datetime
+    updated_at:    Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class ProductListResponse(BaseModel):
+    total: int
+    items: list[ProductResponse]
+
+
+# ── ProductBatch ─────────────────────────────────────────────────────────────
+class ProductBatchBase(BaseModel):
+    product_id:     int
+    entry_date:     date
+    quantity:       Decimal
+    supplier_id:    Optional[int]     = None
+    batch_number:   Optional[str]     = None
+    serial_number:  Optional[str]     = None
+    expiry_date:    Optional[date]    = None
+    purchase_price: Optional[Decimal] = None
+    notes:          Optional[str]     = None
+
+
+class ProductBatchCreate(ProductBatchBase):
+    pass
+
+
+class ProductBatchResponse(ProductBatchBase):
+    id:         int
+    is_active:  bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\schemas\supplier.py
+==================================================
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
+
+class SupplierBase(BaseModel):
+    name:           str
+    contact_person: Optional[str] = None
+    phone:          Optional[str] = None
+    email:          Optional[str] = None
+    address:        Optional[str] = None
+    nit:            Optional[str] = None
+    notes:          Optional[str] = None
+
+
+class SupplierCreate(SupplierBase):
+    pass
+
+
+class SupplierUpdate(BaseModel):
+    name:           Optional[str]  = None
+    contact_person: Optional[str]  = None
+    phone:          Optional[str]  = None
+    email:          Optional[str]  = None
+    address:        Optional[str]  = None
+    nit:            Optional[str]  = None
+    notes:          Optional[str]  = None
+    is_active:      Optional[bool] = None
+
+
+class SupplierResponse(SupplierBase):
+    id:         int
+    is_active:  bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class SupplierListResponse(BaseModel):
+    total: int
+    items: list[SupplierResponse]
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\schemas\user.py
+==================================================
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+from datetime import datetime
+
+
+class UserBase(BaseModel):
+    username:  str
+    email:     EmailStr
+    full_name: str
+    role:      str = "almacenero"
+    phone:     Optional[str] = None
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class UserUpdate(BaseModel):
+    email:     Optional[EmailStr] = None
+    full_name: Optional[str]     = None
+    phone:     Optional[str]     = None
+    role:      Optional[str]     = None
+    is_active: Optional[bool]    = None
+
+
+class UserChangePassword(BaseModel):
+    current_password: str
+    new_password:     str
+
+
+class UserResponse(UserBase):
+    id:             int
+    is_active:      bool
+    created_at:     datetime
+    updated_at:     Optional[datetime] = None
+    last_login:     Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserListResponse(BaseModel):
+    total: int
+    items: list[UserResponse]
+
+
+
+==================================================
+C:\Jayu\hackaton\backend\app\schemas\__init__.py
+==================================================
+from app.schemas.auth import Token, UserCreate, UserResponse, TokenUserData, LoginRequest
+from app.schemas.user import UserUpdate, UserChangePassword, UserListResponse
+from app.schemas.product import (
+    CategoryCreate, CategoryUpdate, CategoryResponse,
+    ProductCreate, ProductUpdate, ProductResponse, ProductListResponse,
+    ProductBatchCreate, ProductBatchResponse,
+)
+from app.schemas.movement import MovementCreate, MovementResponse, MovementListResponse
+from app.schemas.alert import AlertResponse, AlertListResponse, AlertResolve
+from app.schemas.supplier import SupplierCreate, SupplierUpdate, SupplierResponse, SupplierListResponse
+from app.schemas.client import ClientCreate, ClientUpdate, ClientResponse, ClientListResponse
+
+
+
+==================================================
+C:\Jayu\hackaton\frontend\ios\Runner\Assets.xcassets\AppIcon.appiconset\Contents.json
+==================================================
+{
+  "images" : [
+    {
+      "size" : "20x20",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-20x20@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "20x20",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-20x20@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-29x29@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-29x29@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-29x29@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-40x40@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-40x40@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "60x60",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-60x60@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "60x60",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-60x60@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "20x20",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-20x20@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "20x20",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-20x20@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-29x29@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-29x29@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-40x40@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-40x40@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "76x76",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-76x76@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "76x76",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-76x76@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "83.5x83.5",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-83.5x83.5@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "1024x1024",
+      "idiom" : "ios-marketing",
+      "filename" : "Icon-App-1024x1024@1x.png",
+      "scale" : "1x"
+    }
+  ],
+  "info" : {
+    "version" : 1,
+    "author" : "xcode"
+  }
+}
+
+
+
+==================================================
+C:\Jayu\hackaton\frontend\ios\Runner\Assets.xcassets\LaunchImage.imageset\Contents.json
+==================================================
+{
+  "images" : [
+    {
+      "idiom" : "universal",
+      "filename" : "LaunchImage.png",
+      "scale" : "1x"
+    },
+    {
+      "idiom" : "universal",
+      "filename" : "LaunchImage@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "idiom" : "universal",
+      "filename" : "LaunchImage@3x.png",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "version" : 1,
+    "author" : "xcode"
+  }
+}
+
+
+
+==================================================
+C:\Jayu\hackaton\frontend\web\index.html
+==================================================
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="medstock_mobile">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>medstock_mobile</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
+
+
+
+==================================================
+C:\Jayu\hackaton\frontend\web\manifest.json
+==================================================
+{
+    "name": "medstock_mobile",
+    "short_name": "medstock_mobile",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0175C2",
+    "theme_color": "#0175C2",
+    "description": "A new Flutter project.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
+
+
