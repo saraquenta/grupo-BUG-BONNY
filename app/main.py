@@ -51,11 +51,10 @@ Sistema Inteligente de Gestión de Inventario Médico
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,   # ← cambiar a False cuando allow_origins="*"
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_origins=["*"],          # En producción: ["https://tu-dominio.com"]
+    allow_credentials=True,
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
 
 # ── Registrar routers ─────────────────────────────────────────────────────────
