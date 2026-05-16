@@ -5,6 +5,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../data/models/user_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../widgets/role_badge.dart';
+import '../products/products_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -17,7 +18,7 @@ class DashboardScreen extends StatelessWidget {
       appBar: _buildAppBar(context, user),
       drawer: _buildDrawer(context, user),
       body: RefreshIndicator(
-        onRefresh: () async {},   // Se conectará a la API en el Día 5
+        onRefresh: () async {}, // Se conectará a la API en el Día 5
         color: AppColors.primary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -72,13 +73,13 @@ class DashboardScreen extends StatelessWidget {
             ),
             Positioned(
               right: 10,
-              top:   10,
+              top: 10,
               child: Container(
-                width:  8,
+                width: 8,
                 height: 8,
                 decoration: const BoxDecoration(
-                  color:  AppColors.danger,
-                  shape:  BoxShape.circle,
+                  color: AppColors.danger,
+                  shape: BoxShape.circle,
                 ),
               ),
             ),
@@ -116,8 +117,8 @@ class DashboardScreen extends StatelessWidget {
               child: Text(
                 user.initials,
                 style: TextStyle(
-                  color:      user.roleColor,
-                  fontSize:   22,
+                  color: user.roleColor,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -138,51 +139,57 @@ class DashboardScreen extends StatelessWidget {
           ),
 
           _DrawerItem(
-            icon:     Icons.dashboard_rounded,
-            label:    AppStrings.dashboard,
+            icon: Icons.dashboard_rounded,
+            label: AppStrings.dashboard,
             isActive: true,
-            onTap:    () => Navigator.pop(context),
+            onTap: () => Navigator.pop(context),
           ),
           _DrawerItem(
-            icon:  Icons.inventory_2_outlined,
+            icon: Icons.inventory_2_outlined,
             label: AppStrings.products,
-            onTap: () {},      // Módulo Día 3
+            onTap: () {
+              Navigator.pop(context); 
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProductsScreen()),
+              );
+            }, // Módulo Día 3
           ),
           _DrawerItem(
-            icon:  Icons.add_box_outlined,
+            icon: Icons.add_box_outlined,
             label: AppStrings.ingresos,
-            onTap: () {},      // Módulo Día 4
+            onTap: () {}, // Módulo Día 4
           ),
           _DrawerItem(
-            icon:  Icons.outbox_outlined,
+            icon: Icons.outbox_outlined,
             label: AppStrings.salidas,
-            onTap: () {},      // Módulo Día 4
+            onTap: () {}, // Módulo Día 4
           ),
           _DrawerItem(
-            icon:  Icons.qr_code_scanner_rounded,
+            icon: Icons.qr_code_scanner_rounded,
             label: AppStrings.scannerQR,
-            onTap: () {},      // Módulo Día 3
+            onTap: () {}, // Módulo Día 3
           ),
           _DrawerItem(
-            icon:  Icons.notifications_outlined,
+            icon: Icons.notifications_outlined,
             label: AppStrings.alerts,
-            onTap: () {},      // Módulo Día 5
+            onTap: () {}, // Módulo Día 5
           ),
           _DrawerItem(
-            icon:  Icons.bar_chart_rounded,
+            icon: Icons.bar_chart_rounded,
             label: AppStrings.reports,
-            onTap: () {},      // Módulo Día 6
+            onTap: () {}, // Módulo Día 6
           ),
 
           if (user.isAdmin) ...[
             const Divider(indent: 16, endIndent: 16),
             _DrawerItem(
-              icon:  Icons.people_outline,
+              icon: Icons.people_outline,
               label: AppStrings.users,
-              onTap: () {},    // Módulo Día 2
+              onTap: () {}, // Módulo Día 2
             ),
             _DrawerItem(
-              icon:  Icons.settings_outlined,
+              icon: Icons.settings_outlined,
               label: AppStrings.settings,
               onTap: () {},
             ),
@@ -191,7 +198,7 @@ class DashboardScreen extends StatelessWidget {
           const Divider(indent: 16, endIndent: 16),
 
           _DrawerItem(
-            icon:  Icons.logout_rounded,
+            icon: Icons.logout_rounded,
             label: AppStrings.logout,
             color: AppColors.danger,
             onTap: () async {
@@ -205,7 +212,7 @@ class DashboardScreen extends StatelessWidget {
             child: Text(
               '${AppStrings.version} · ${AppStrings.university}',
               style: const TextStyle(
-                color:    AppColors.textHint,
+                color: AppColors.textHint,
                 fontSize: 10,
               ),
             ),
@@ -220,44 +227,44 @@ class DashboardScreen extends StatelessWidget {
     return Text(
       title,
       style: const TextStyle(
-        fontSize:   16,
+        fontSize: 16,
         fontWeight: FontWeight.bold,
-        color:      AppColors.textPrimary,
+        color: AppColors.textPrimary,
       ),
     );
   }
 
   Widget _buildKpiGrid() {
     return GridView.count(
-      shrinkWrap:   true,
-      physics:      const NeverScrollableScrollPhysics(),
-      crossAxisCount:   2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
       crossAxisSpacing: 12,
-      mainAxisSpacing:  12,
+      mainAxisSpacing: 12,
       childAspectRatio: 1.25,
       children: const [
         _KpiCard(
           label: AppStrings.totalProducts,
           value: '—',
-          icon:  Icons.inventory_2_rounded,
+          icon: Icons.inventory_2_rounded,
           color: AppColors.primary,
         ),
         _KpiCard(
           label: AppStrings.criticalStock,
           value: '—',
-          icon:  Icons.warning_amber_rounded,
+          icon: Icons.warning_amber_rounded,
           color: AppColors.danger,
         ),
         _KpiCard(
           label: AppStrings.todayMovements,
           value: '—',
-          icon:  Icons.swap_horiz_rounded,
+          icon: Icons.swap_horiz_rounded,
           color: AppColors.success,
         ),
         _KpiCard(
           label: AppStrings.inventoryValue,
           value: '—',
-          icon:  Icons.attach_money_rounded,
+          icon: Icons.attach_money_rounded,
           color: AppColors.accent,
         ),
       ],
@@ -275,21 +282,30 @@ class DashboardScreen extends StatelessWidget {
           label: 'Registrar\nIngreso',
           color: AppColors.success,
           width: width,
-          onTap: () {},
+          onTap: () {
+            // Se habilitará en el Módulo de Movimientos (Día 4)
+          },
         ),
         _QuickAction(
           icon:  Icons.remove_circle_outline_rounded,
           label: 'Registrar\nSalida',
           color: AppColors.warning,
           width: width,
-          onTap: () {},
+          onTap: () {
+            // Se habilitará en el Módulo de Movimientos (Día 4)
+          },
         ),
         _QuickAction(
-          icon:  Icons.qr_code_scanner_rounded,
-          label: 'Escanear\nProducto',
+          icon:  Icons.inventory_2_outlined, // Cambié el ícono para que coincida con Productos
+          label: 'Ver\nInventario',          // Cambiamos el texto para que sea más claro
           color: AppColors.primary,
           width: width,
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProductsScreen()),
+            );
+          },
         ),
         if (user.isSupervisor)
           _QuickAction(
@@ -297,7 +313,9 @@ class DashboardScreen extends StatelessWidget {
             label: 'Ver\nReportes',
             color: AppColors.accent,
             width: width,
-            onTap: () {},
+            onTap: () {
+              // Se habilitará en el Módulo de Reportes (Día 6)
+            },
           ),
       ],
     );
@@ -306,13 +324,13 @@ class DashboardScreen extends StatelessWidget {
   Widget _buildRecentActivity() {
     return Container(
       decoration: BoxDecoration(
-        color:        AppColors.surface,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color:     Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 8,
-            offset:    const Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -342,9 +360,13 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
                 title: Text(
-                  ['Ingreso registrado', 'Salida registrada', 'Producto actualizado'][i],
+                  [
+                    'Ingreso registrado',
+                    'Salida registrada',
+                    'Producto actualizado'
+                  ][i],
                   style: const TextStyle(
-                    fontSize:   14,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -356,7 +378,7 @@ class DashboardScreen extends StatelessWidget {
                   '—',
                   style: TextStyle(
                     fontSize: 12,
-                    color:    AppColors.textSecondary,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -368,7 +390,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 }
-
 
 class _GreetingCard extends StatelessWidget {
   final UserModel user;
@@ -388,15 +409,15 @@ class _GreetingCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.primary, AppColors.accent],
-          begin:  Alignment.topLeft,
-          end:    Alignment.bottomRight,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color:     AppColors.primary.withOpacity(0.35),
+            color: AppColors.primary.withOpacity(0.35),
             blurRadius: 16,
-            offset:    const Offset(0, 6),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -405,12 +426,12 @@ class _GreetingCard extends StatelessWidget {
           // Avatar
           CircleAvatar(
             backgroundColor: Colors.white,
-            radius:          28,
+            radius: 28,
             child: Text(
               user.initials,
               style: TextStyle(
-                color:      user.roleColor,
-                fontSize:   20,
+                color: user.roleColor,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -428,8 +449,8 @@ class _GreetingCard extends StatelessWidget {
                 Text(
                   user.fullName,
                   style: const TextStyle(
-                    color:      Colors.white,
-                    fontSize:   16,
+                    color: Colors.white,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -446,10 +467,10 @@ class _GreetingCard extends StatelessWidget {
 }
 
 class _KpiCard extends StatelessWidget {
-  final String   label;
-  final String   value;
+  final String label;
+  final String value;
   final IconData icon;
-  final Color    color;
+  final Color color;
 
   const _KpiCard({
     required this.label,
@@ -463,13 +484,13 @@ class _KpiCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color:        AppColors.surface,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color:     Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 8,
-            offset:    const Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -477,9 +498,9 @@ class _KpiCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding:      const EdgeInsets.all(8),
-            decoration:   BoxDecoration(
-              color:        color.withOpacity(0.12),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -488,9 +509,9 @@ class _KpiCard extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontSize:   24,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
-              color:      color,
+              color: color,
             ),
           ),
           const SizedBox(height: 2),
@@ -498,7 +519,7 @@ class _KpiCard extends StatelessWidget {
             label,
             style: const TextStyle(
               fontSize: 11,
-              color:    AppColors.textSecondary,
+              color: AppColors.textSecondary,
             ),
           ),
         ],
@@ -509,9 +530,9 @@ class _KpiCard extends StatelessWidget {
 
 class _QuickAction extends StatelessWidget {
   final IconData icon;
-  final String   label;
-  final Color    color;
-  final double   width;
+  final String label;
+  final Color color;
+  final double width;
   final VoidCallback onTap;
 
   const _QuickAction({
@@ -525,29 +546,29 @@ class _QuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap:        onTap,
+      onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        width:   width,
+        width: width,
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
         decoration: BoxDecoration(
-          color:        AppColors.surface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
-              color:     Colors.black.withOpacity(0.04),
+              color: Colors.black.withOpacity(0.04),
               blurRadius: 6,
-              offset:    const Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              padding:    const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color:        color.withOpacity(0.12),
+                color: color.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: color, size: 18),
@@ -557,9 +578,9 @@ class _QuickAction extends StatelessWidget {
               child: Text(
                 label,
                 style: const TextStyle(
-                  fontSize:   12,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color:      AppColors.textPrimary,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ),
@@ -572,16 +593,16 @@ class _QuickAction extends StatelessWidget {
 
 class _DrawerItem extends StatelessWidget {
   final IconData icon;
-  final String   label;
+  final String label;
   final VoidCallback onTap;
-  final Color    color;
-  final bool     isActive;
+  final Color color;
+  final bool isActive;
 
   const _DrawerItem({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.color    = AppColors.textPrimary,
+    this.color = AppColors.textPrimary,
     this.isActive = false,
   });
 
@@ -590,25 +611,25 @@ class _DrawerItem extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color:        isActive ? AppColors.primary.withOpacity(0.1) : null,
+        color: isActive ? AppColors.primary.withOpacity(0.1) : null,
         borderRadius: BorderRadius.circular(10),
       ),
       child: ListTile(
         leading: Icon(
           icon,
           color: isActive ? AppColors.primary : color,
-          size:  22,
+          size: 22,
         ),
         title: Text(
           label,
           style: TextStyle(
-            color:      isActive ? AppColors.primary : color,
+            color: isActive ? AppColors.primary : color,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            fontSize:   14,
+            fontSize: 14,
           ),
         ),
-        onTap:   onTap,
-        dense:   true,
+        onTap: onTap,
+        dense: true,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),
@@ -625,7 +646,7 @@ class _ModulesBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color:        AppColors.infoLight,
+        color: AppColors.infoLight,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.info.withOpacity(0.3)),
       ),
